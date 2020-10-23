@@ -1,6 +1,7 @@
 CARGO?=cargo
 BUILD_TYPE?=release
 DOCKER_IMAGE=adamschwalm/hypervisor-build:12
+CARGO_BUILD_JOBS?=$(shell grep -c '^processor' /proc/cpuinfo)
 
 mythril_binary = mythril/target/mythril_target/$(BUILD_TYPE)/mythril
 mythril_src = $(shell find mythril* -type f -name '*.rs' -or -name '*.S' -or -name '*.ld' \
@@ -33,20 +34,21 @@ mythril-debug: BUILD_TYPE=debug
 mythril-debug: $(mythril_binary)
 
 docker-%:
-	docker run --privileged -it --rm -w $(CURDIR) -v $(CURDIR):$(CURDIR) \
-	   -u $(shell id -u):$(shell id -g) $(DOCKER_IMAGE) \
-	   /bin/bash -c '$(MAKE) $*'
+	docker run --privileged -ti --rm -w $(CURDIR) -v $(CURDIR):$(CURDIR) \
+	   -u $(shell id -u):$(shell id -g) \
+	   -e CARGO_BUILD_JOBS=$(CARGO_BUILD_JOBS) \
+	   $(DOCKER_IMAGE) /bin/bash -c '$(MAKE) $*'
 
 $(seabios):
 	cp scripts/seabios.config seabios/.config
-	make -C seabios
+	make -j $(CARGO_BUILD_JOBS) -C seabios
 
 $(seabios_blob): $(seabios)
 	cp $(seabios) $(seabios_blob)
 
 $(kernel):
 	cp scripts/kernel.config linux/.config
-	make -C linux bzImage
+	make -j $(CARGO_BUILD_JOBS) -C linux bzImage
 
 .PHONY: qemu
 qemu: mythril $(kernel)
