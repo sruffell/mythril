@@ -18,6 +18,7 @@ cp linux/arch/x86_64/boot/bzImage _isofiles/boot/vmlinuz
 cp scripts/linuxboot_dma.bin _isofiles/boot/linuxboot_dma.bin
 cp scripts/initramfs _isofiles/boot/initramfs
 cp "$1" _isofiles/boot/mythril.bin
+cp scripts/mythril.cfg _isofiles/boot/mythril.cfg
 
 # Explicitly avoid using grub efi for now
 grub-mkrescue -d /usr/lib/grub/i386-pc -o os.iso _isofiles
