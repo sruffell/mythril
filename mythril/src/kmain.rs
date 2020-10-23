@@ -116,7 +116,7 @@ fn default_vm(
             "rodata=0 nopti disableapic acpi=off ",
             "earlyprintk=serial,0x3f8,115200 ",
             "console=ttyS0 debug nokaslr noapic mitigations=off ",
-            "root=/dev/ram0 rdinit=/bin/sh\0"
+            "root=/dev/ram0 rdinit=/sbin/init\0"
         )
         .as_bytes(),
         mem,
