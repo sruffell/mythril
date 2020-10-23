@@ -2,6 +2,7 @@ use crate::acpi;
 use crate::ap;
 use crate::apic;
 use crate::boot_info::BootInfo;
+use crate::config;
 use crate::interrupt;
 use crate::ioapic;
 use crate::linux;
@@ -30,7 +31,7 @@ extern "C" {
 // Temporary helper function to create a vm for a single core
 fn default_vm(
     core: percore::CoreId,
-    mem: u64,
+    cfg: &config::VmConfig,
     info: &BootInfo,
     add_uart: bool,
 ) -> Arc<RwLock<vm::VirtualMachine>> {
@@ -47,7 +48,7 @@ fn default_vm(
     };
 
     let mut config =
-        vm::VirtualMachineConfig::new(vec![core], mem, physical_config);
+        vm::VirtualMachineConfig::new(vec![core], cfg.memory, physical_config);
 
     let device_map = config.virtual_devices_mut();
     device_map
@@ -84,7 +85,7 @@ fn default_vm(
         .register_device(virtdev::pos::ProgrammableOptionSelect::new())
         .unwrap();
     device_map
-        .register_device(virtdev::rtc::CmosRtc::new(mem))
+        .register_device(virtdev::rtc::CmosRtc::new(cfg.memory))
         .unwrap();
 
     //TODO: this should actually be per-vcpu
@@ -110,16 +111,10 @@ fn default_vm(
         .unwrap();
 
     linux::load_linux(
-        "kernel",
-        "initramfs",
-        core::concat!(
-            "rodata=0 nopti disableapic acpi=off ",
-            "earlyprintk=serial,0x3f8,115200 ",
-            "console=ttyS0 debug nokaslr noapic mitigations=off ",
-            "root=/dev/ram0 rdinit=/sbin/init\0"
-        )
-        .as_bytes(),
-        mem,
+        &cfg.kernel,
+        &cfg.initramfs,
+        cfg.cmdline.as_bytes(),
+        cfg.memory,
         &mut fw_cfg_builder,
         info,
     )
@@ -211,11 +206,20 @@ unsafe fn kmain(mut boot_info: BootInfo) -> ! {
 
     let mut builder = vm::VirtualMachineBuilder::new();
 
+    let raw_cfg = boot_info.find_module("mythril.cfg")
+        .expect("Failed to find 'mythril.cfg' in multiboot2 information")
+        .data();
+
+    let mythril_cfg:config::Config = serde_json::from_slice(&raw_cfg)
+        .expect("Failed to parse 'mythril.cfg'");
+
+    info!("mythril.cfg: {:?}", mythril_cfg);
+
     for apic_id in apic_ids.iter() {
         builder
             .insert_machine(default_vm(
                 percore::CoreId::from(apic_id.raw),
-                256,
+                &mythril_cfg.vms.get(0).expect("Failed to find vm in mythril.cfg"),
                 &boot_info,
                 apic_id.is_bsp(),
             ))
