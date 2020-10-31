@@ -7,6 +7,9 @@ mythril_src = $(shell find mythril* -type f -name '*.rs' -or -name '*.S' -or -na
 	                   -name 'Cargo.toml')
 kernel = linux/arch/x86_64/boot/bzImage
 seabios = seabios/out/bios.bin
+initramfs = scripts/initramfs
+busybox = busybox/busybox
+
 git_hooks_src = $(wildcard .mythril_githooks/*)
 git_hooks = $(subst .mythril_githooks,.git/hooks,$(git_hooks_src))
 
@@ -44,6 +47,14 @@ $(kernel):
 	cp scripts/kernel.config linux/.config
 	make -C linux bzImage
 
+$(busybox): FORCE
+	$(MAKE) -C busybox
+
+$(initramfs): $(busybox) $(wildcard initramfs_overlay/**/*)
+	make -C busybox CONFIG_PREFIX=../_initramfs install
+	rsync -av initramfs_overlay/ _initramfs/
+	find _initramfs/ -printf '%P\n' | cpio --owner=0:0 -ov -D _initramfs --format=newc | gzip > scripts/initramfs
+	
 .PHONY: qemu
 qemu: mythril $(seabios) $(kernel)
 	./scripts/mythril-run.sh $(mythril_binary) $(QEMU_EXTRA)
@@ -105,3 +116,5 @@ help:
 	@echo ""
 	@echo "   make qemu"
 	@echo "   make qemu -- -serial pty -monitor stdio"
+
+FORCE: ;

@@ -1,0 +1,7 @@
+#!/bin/sh
+mkdir -p /proc
+mkdir -p /dev
+mkdir -p /sys
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+/bin/mknod /dev/null c 1 3

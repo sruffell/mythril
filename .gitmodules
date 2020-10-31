@@ -6,3 +6,7 @@
 	path = linux
 	url = https://github.com/mythril-hypervisor/linux.git
 	shallow = true
+[submodule "busybox"]
+	path = busybox
+	url = https://github.com/mirror/busybox.git
+	shallow = true
