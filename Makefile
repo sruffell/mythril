@@ -50,22 +50,27 @@ $(seabios):
 
 $(kernel):
 	cp scripts/kernel.config linux/.config
-	make -j $(CARGO_BUILD_JOBS) -C linux bzImage
+	$(MAKE) -j $(CARGO_BUILD_JOBS) -C linux bzImage
 
-$(busybox): FORCE
-	$(MAKE) -C busybox
+busybox/.config: scripts/busybox.config
+	cp -a $^ $@
 
-$(initramfs): $(busybox) $(wildcard initramfs_overlay/**/*)
-	make -C busybox CONFIG_PREFIX=../_initramfs install
-	rsync -av initramfs_overlay/ _initramfs/
+busybox: $(busybox)
+$(busybox): FORCE busybox/.config
+	$(MAKE) -j $(CARGO_BUILD_JOBS) -C busybox
+
+#$(initramfs): $(busybox) $(wildcard initramfs_overlay/**/*)
+$(initramfs): $(wildcard initramfs_overlay/**/*)
+	#make -C busybox CONFIG_PREFIX=../_initramfs install
+	cp -av initramfs_overlay/* _initramfs/
 	find _initramfs/ -printf '%P\n' | cpio --owner=0:0 -ov -D _initramfs --format=newc | gzip > scripts/initramfs
 	
 .PHONY: qemu
-qemu: mythril $(seabios) $(kernel)
+qemu: mythril $(seabios) $(kernel) $(initramfs)
 	./scripts/mythril-run.sh $(mythril_binary) $(QEMU_EXTRA)
 
 .PHONY: qemu-debug
-qemu-debug: mythril-debug $(seabios) $(kernel)
+qemu-debug: mythril-debug $(seabios) $(kernel) $(initramfs)
 	./scripts/mythril-run.sh $(mythril_binary) \
 	    -gdb tcp::1234 -S $(QEMU_EXTRA)
 
