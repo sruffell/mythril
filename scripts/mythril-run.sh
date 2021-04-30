@@ -21,6 +21,7 @@ cp scripts/mythril.cfg _isofiles/boot/mythril.cfg
 # Explicitly avoid using grub efi for now
 grub-mkrescue -d /usr/lib/grub/i386-pc -o os.iso _isofiles
 
+
 qemu-system-x86_64 -enable-kvm \
                    -cpu host \
                    -smp cores=6,threads=1,sockets=1 \
@@ -31,4 +32,5 @@ qemu-system-x86_64 -enable-kvm \
                    -debugcon file:debug.log \
                    -no-reboot \
                    -global isa-debugcon.iobase=0x402 \
+                   -device isa-debug-exit \
                    -m 2G "${@:2}"

@@ -120,6 +120,19 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[cfg(not(test))]
 fn eh_personality() {}
 
+fn outb(address: u16, value: u8) {
+    unsafe {
+        asm!("out dx, al", in("dx") address, in("al") value);
+    }
+}
+
+fn isa_debug_exit(exit_code: u8) {
+    const ISA_DEBUG_EXIT_PORT: u16 = 0x501;
+    // If QEMU was started with `-device isa-debug-exit`, then it will
+    // shutdown with an exit code of `(exit_code*2)+1`
+    outb(ISA_DEBUG_EXIT_PORT, exit_code)
+}
+
 #[panic_handler]
 #[cfg(not(test))]
 fn panic_handler(info: &core::panic::PanicInfo) -> ! {
@@ -135,6 +148,10 @@ fn panic_handler(info: &core::panic::PanicInfo) -> ! {
         }
     }
 
+    // Try to exit with an error if running under QEMU.
+    isa_debug_exit(0x1);
+
+    error!("Halted");
     loop {
         unsafe {
             // Try to at least keep CPU from running at 100%
